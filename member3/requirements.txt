@@ -1,0 +1,3 @@
+pyperclip
+opencv-python
+pyzbar
