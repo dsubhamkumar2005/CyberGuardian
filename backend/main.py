@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+
 from backend.scanner import scan_url
 
 app = FastAPI(title="CyberGuardian Backend")
