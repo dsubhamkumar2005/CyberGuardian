@@ -1,0 +1,18 @@
+[
+  "length",
+  "path_length",
+  "query_length",
+  "subdomain_count",
+  "num_subdirectories",
+  "uses_ip",
+  "has_https",
+  "special_char_count",
+  "shannon_entropy",
+  "num_digits",
+  "digit_ratio",
+  "num_hyphens",
+  "has_at_symbol",
+  "has_double_slash_redirect",
+  "is_shortened",
+  "has_suspicious_keywords"
+]

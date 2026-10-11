@@ -1,291 +1,319 @@
+
 import os
+import json
+import warnings
+
 import pandas as pd
 import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
+
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+)
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.exceptions import ConvergenceWarning
 
 
 # ============================================================
 # PATHS
 # ============================================================
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
 
-FEATURES_PATH = os.path.join(BASE_DIR, "features", "features.csv")
+FEATURES_PATH = os.path.join(
+    BASE_DIR, "features", "features_rebuilt.csv"
+)
+
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
+RESULTS_DIR = os.path.join(BASE_DIR, "results")
+
 os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
-print("=" * 60)
-print("TRAINING MALICIOUS URL CLASSIFIERS")
-print("=" * 60)
+# Save under new names so old models remain untouched.
+MODEL_FILES = {
+    "Logistic Regression": "logistic_regression_rebuilt.pkl",
+    "Random Forest": "url_classifier_rebuilt.pkl",
+    "MLP": "mlp_model_rebuilt.pkl",
+}
 
-print(f"Loading dataset: {FEATURES_PATH}")
+
+# ============================================================
+# LOAD DATASET
+# ============================================================
+
+print("=" * 65)
+print("CYBERGUARDIAN DESK - MODEL TRAINING")
+print("=" * 65)
+
+print(f"\nLoading dataset: {FEATURES_PATH}")
+
+if not os.path.exists(FEATURES_PATH):
+    raise FileNotFoundError(
+        f"Dataset not found: {FEATURES_PATH}\n"
+        "Run generate_features.py first."
+    )
 
 df = pd.read_csv(FEATURES_PATH)
 
-print(f"Loaded {len(df)} samples across {len(df.columns)} columns.")
+print(f"Loaded {len(df)} rows and {len(df.columns)} columns.")
 
+if "label" not in df.columns:
+    raise ValueError("Dataset must contain a 'label' column.")
 
-# ============================================================
-# SEPARATE FEATURES AND TARGET
-# ============================================================
+# The feature-generation script should output 16 features + label.
+if len(df.columns) != 17:
+    raise ValueError(
+        f"Expected 17 columns (16 features + label), "
+        f"but found {len(df.columns)}."
+    )
+
+if df.isna().any().any():
+    raise ValueError("Missing values found. Fix the dataset first.")
+
+if not df["label"].isin([0, 1]).all():
+    raise ValueError("Labels must be 0 (Safe) or 1 (Malicious).")
 
 X = df.drop(columns=["label"])
-y = df["label"]
+y = df["label"].astype(int)
+
+# Ensure every input feature is numeric.
+X = X.apply(pd.to_numeric, errors="coerce")
+
+if X.isna().any().any():
+    raise ValueError("Non-numeric feature values found.")
 
 feature_names = list(X.columns)
 
-print(f"Features ({len(feature_names)}): {feature_names}")
+print(f"\nNumber of features: {len(feature_names)}")
+print("Features:", feature_names)
 
+print("\nClass distribution:")
+print(
+    y.value_counts()
+    .sort_index()
+    .rename(index={0: "Safe", 1: "Malicious"})
+)
 
-# ============================================================
-# TRAIN-TEST SPLIT
-# ============================================================
-
+# This is a diagnostic split only, not the final evaluation.
 X_train, X_test, y_train, y_test = train_test_split(
     X,
     y,
-    test_size=0.2,
+    test_size=0.20,
     random_state=42,
-    stratify=y
+    stratify=y,
 )
 
-print(f"Training set: {X_train.shape[0]} samples")
-print(f"Testing set : {X_test.shape[0]} samples")
+print(f"\nTraining rows: {len(X_train)}")
+print(f"Testing rows : {len(X_test)}")
 
 
 # ============================================================
-# 1. LOGISTIC REGRESSION
+# DEFINE MODELS
 # ============================================================
 
-print("\n" + "=" * 60)
-print("<< 1. LOGISTIC REGRESSION MODEL >>")
-print("=" * 60)
+models = {
+    "Logistic Regression": Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", LogisticRegression(
+            max_iter=2000,
+            random_state=42,
+        )),
+    ]),
 
-lr_model = LogisticRegression(
-    max_iter=1000,
-    random_state=42
-)
+    "Random Forest": RandomForestClassifier(
+        n_estimators=200,
+        random_state=42,
+        class_weight="balanced",
+        n_jobs=-1,
+    ),
 
-lr_model.fit(X_train, y_train)
+    "MLP": Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", MLPClassifier(
+            hidden_layer_sizes=(32, 16),
+            max_iter=1500,
+            early_stopping=True,
+            random_state=42,
+        )),
+    ]),
+}
 
-lr_predictions = lr_model.predict(X_test)
 
-lr_accuracy = accuracy_score(
-    y_test,
-    lr_predictions
-)
+# ============================================================
+# TRAIN AND EVALUATE
+# ============================================================
 
-print(f"Logistic Regression Accuracy: {lr_accuracy:.4f}")
+results = []
+trained_models = {}
 
-print("\nClassification Report:")
-print(
-    classification_report(
-        y_test,
-        lr_predictions,
-        target_names=["Safe (0)", "Malicious (1)"]
+for name, model in models.items():
+
+    print("\n" + "=" * 65)
+    print(f"MODEL: {name}")
+    print("=" * 65)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+
+        model.fit(X_train, y_train)
+
+        for warning in caught:
+            if issubclass(warning.category, ConvergenceWarning):
+                print("WARNING: Model did not converge fully.")
+
+    predictions = model.predict(X_test)
+
+    accuracy = accuracy_score(y_test, predictions)
+
+    # Positive class = Malicious (label 1).
+    precision = precision_score(
+        y_test, predictions, pos_label=1, zero_division=0
     )
-)
 
-
-# ============================================================
-# 2. RANDOM FOREST
-# ============================================================
-
-print("\n" + "=" * 60)
-print("<< 2. RANDOM FOREST MODEL >>")
-print("=" * 60)
-
-rf_model = RandomForestClassifier(
-    n_estimators=100,
-    random_state=42
-)
-
-rf_model.fit(X_train, y_train)
-
-rf_predictions = rf_model.predict(X_test)
-
-rf_accuracy = accuracy_score(
-    y_test,
-    rf_predictions
-)
-
-print(f"Random Forest Accuracy: {rf_accuracy:.4f}")
-
-print("\nClassification Report:")
-print(
-    classification_report(
-        y_test,
-        rf_predictions,
-        target_names=["Safe (0)", "Malicious (1)"]
+    recall = recall_score(
+        y_test, predictions, pos_label=1, zero_division=0
     )
-)
 
-
-# ============================================================
-# RANDOM FOREST CONFUSION MATRIX
-# ============================================================
-
-print("\nConfusion Matrix:")
-
-cm = confusion_matrix(
-    y_test,
-    rf_predictions
-)
-
-print(
-    f"True Safe / Pred Safe       : {cm[0][0]:3d} | "
-    f"True Safe / Pred Malicious : {cm[0][1]:3d}"
-)
-
-print(
-    f"True Mal / Pred Safe        : {cm[1][0]:3d} | "
-    f"True Mal / Pred Malicious  : {cm[1][1]:3d}"
-)
-
-
-# ============================================================
-# 3. MLP NEURAL NETWORK
-# ============================================================
-
-print("\n" + "=" * 60)
-print("<< 3. MLP NEURAL NETWORK >>")
-print("=" * 60)
-
-mlp_model = Pipeline([
-    ("scaler", StandardScaler()),
-
-    ("mlp", MLPClassifier(
-        hidden_layer_sizes=(32, 16),
-        max_iter=1000,
-        random_state=42
-    ))
-])
-
-mlp_model.fit(X_train, y_train)
-
-mlp_predictions = mlp_model.predict(X_test)
-
-mlp_accuracy = accuracy_score(
-    y_test,
-    mlp_predictions
-)
-
-print(f"MLP Accuracy: {mlp_accuracy:.4f}")
-
-print("\nClassification Report:")
-print(
-    classification_report(
-        y_test,
-        mlp_predictions,
-        target_names=["Safe (0)", "Malicious (1)"]
+    f1 = f1_score(
+        y_test, predictions, pos_label=1, zero_division=0
     )
-)
 
+    cm = confusion_matrix(
+        y_test, predictions, labels=[0, 1]
+    )
 
-# ============================================================
-# 4. MODEL COMPARISON
-# ============================================================
+    print(f"\nAccuracy : {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1-score : {f1:.4f}")
 
-print("\n" + "=" * 60)
-print("<< MODEL COMPARISON >>")
-print("=" * 60)
-
-print(f"Logistic Regression Accuracy : {lr_accuracy * 100:.2f}%")
-print(f"Random Forest Accuracy       : {rf_accuracy * 100:.2f}%")
-print(f"MLP Accuracy                 : {mlp_accuracy * 100:.2f}%")
-
-
-# ============================================================
-# 5. RANDOM FOREST FEATURE IMPORTANCE
-# ============================================================
-
-print("\n" + "=" * 60)
-print("<< RANDOM FOREST FEATURE IMPORTANCE >>")
-print("=" * 60)
-
-feature_importance = pd.DataFrame({
-    "Feature": feature_names,
-    "Importance": rf_model.feature_importances_
-})
-
-feature_importance = feature_importance.sort_values(
-    by="Importance",
-    ascending=False
-).reset_index(drop=True)
-
-for i, row in feature_importance.iterrows():
-
-    bar = "#" * int(row["Importance"] * 50)
-
+    print("\nClassification report:")
     print(
-        f"{i + 1:2d}. "
-        f"{row['Feature']:26} : "
-        f"{row['Importance']:.4f} | {bar}"
+        classification_report(
+            y_test,
+            predictions,
+            labels=[0, 1],
+            target_names=["Safe", "Malicious"],
+            zero_division=0,
+        )
     )
 
+    print("Confusion matrix (rows = actual, columns = predicted):")
+    print("                 Pred Safe  Pred Malicious")
+    print(f"Actual Safe      {cm[0, 0]:9d}  {cm[0, 1]:14d}")
+    print(f"Actual Malicious {cm[1, 0]:9d}  {cm[1, 1]:14d}")
+
+    results.append({
+        "model": name,
+        "accuracy": accuracy,
+        "precision_malicious": precision,
+        "recall_malicious": recall,
+        "f1_malicious": f1,
+        "true_safe": int(cm[0, 0]),
+        "false_positive": int(cm[0, 1]),
+        "false_negative": int(cm[1, 0]),
+        "true_malicious": int(cm[1, 1]),
+    })
+
+    trained_models[name] = model
+
 
 # ============================================================
-# 6. SAVE MODELS
+# COMPARE MODELS
 # ============================================================
 
-print("\n" + "=" * 60)
-print("<< SAVING MODEL ARTIFACTS >>")
-print("=" * 60)
+results_df = pd.DataFrame(results)
 
-lr_model_path = os.path.join(
-    MODELS_DIR,
-    "logistic_regression_model.pkl"
+print("\n" + "=" * 65)
+print("MODEL COMPARISON - DIAGNOSTIC SPLIT")
+print("=" * 65)
+
+print(
+    results_df[
+        [
+            "model",
+            "accuracy",
+            "precision_malicious",
+            "recall_malicious",
+            "f1_malicious",
+        ]
+    ].to_string(index=False)
 )
 
-rf_model_path = os.path.join(
-    MODELS_DIR,
-    "url_classifier.pkl"
+results_path = os.path.join(
+    RESULTS_DIR, "diagnostic_model_results.csv"
 )
 
-rf_backup_path = os.path.join(
-    MODELS_DIR,
-    "random_forest_model.pkl"
+results_df.to_csv(results_path, index=False)
+
+print(f"\nMetrics saved to: {results_path}")
+
+
+# ============================================================
+# RANDOM FOREST FEATURE IMPORTANCE
+# ============================================================
+
+rf_model = trained_models["Random Forest"]
+
+importance_df = pd.DataFrame({
+    "feature": feature_names,
+    "importance": rf_model.feature_importances_,
+}).sort_values("importance", ascending=False)
+
+importance_path = os.path.join(
+    RESULTS_DIR, "diagnostic_feature_importance.csv"
 )
 
-mlp_model_path = os.path.join(
-    MODELS_DIR,
-    "mlp_model.pkl"
+importance_df.to_csv(importance_path, index=False)
+
+print("\nRandom Forest feature importance:")
+print(importance_df.to_string(index=False))
+
+
+# ============================================================
+# SAVE MODELS AS DIAGNOSTIC MODELS
+# ============================================================
+
+print("\n" + "=" * 65)
+print("SAVING DIAGNOSTIC MODELS")
+print("=" * 65)
+
+for name, model in trained_models.items():
+
+    filename = MODEL_FILES[name]
+    model_path = os.path.join(MODELS_DIR, filename)
+
+    joblib.dump(model, model_path)
+
+    print(f"{name}: {model_path}")
+
+# Save feature order to help enforce consistency during inference.
+feature_order_path = os.path.join(
+    MODELS_DIR, "feature_order_rebuilt.json"
 )
 
+with open(feature_order_path, "w", encoding="utf-8") as file:
+    json.dump(feature_names, file, indent=2)
 
-joblib.dump(
-    lr_model,
-    lr_model_path
-)
+print(f"Feature order saved to: {feature_order_path}")
 
-joblib.dump(
-    rf_model,
-    rf_model_path
-)
-
-joblib.dump(
-    rf_model,
-    rf_backup_path
-)
-
-joblib.dump(
-    mlp_model,
-    mlp_model_path
-)
-
-
-print(f"Logistic Regression saved to: {lr_model_path}")
-print(f"Random Forest saved to       : {rf_model_path}")
-print(f"Random Forest backup saved   : {rf_backup_path}")
-print(f"MLP saved to                 : {mlp_model_path}")
-
-print("\nTraining workflow completed successfully!")
+print("\n" + "=" * 65)
+print("DIAGNOSTIC TRAINING COMPLETED")
+print("These results are NOT final validated performance.")
+print("=" * 65)
