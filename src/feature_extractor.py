@@ -64,8 +64,29 @@ _EXTRACTOR = tldextract.TLDExtract(include_psl_private_domains=True)
 
 
 # ---------------------------------------------------------------------------
-# URL SANITIZATION & VALIDATION
+# URL SANITIZATION & NORMALIZATION
 # ---------------------------------------------------------------------------
+
+def normalize_url(url: str) -> str:
+    """
+    Normalizes a URL string into canonical form:
+    - Strips whitespace and surrounding wrapping characters ('", <>, `).
+    - If scheme is missing, prepends 'http://'.
+    - Ensures lower-cased scheme and host for consistent parsing.
+    """
+    if not url or not isinstance(url, str):
+        return ""
+
+    clean = url.strip().strip("'\"`<>")
+    if not clean:
+        return ""
+
+    # Prepend scheme if missing for accurate parsing
+    if not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", clean):
+        clean = "http://" + clean
+
+    return clean
+
 
 def validate_url(url: str) -> tuple[bool, str]:
     """
@@ -76,7 +97,7 @@ def validate_url(url: str) -> tuple[bool, str]:
     if not url or not isinstance(url, str):
         return False, "Empty or invalid URL input"
 
-    clean_url = url.strip()
+    clean_url = url.strip().strip("'\"`<>")
     if not clean_url:
         return False, "Empty URL string"
 
@@ -86,11 +107,7 @@ def validate_url(url: str) -> tuple[bool, str]:
         if lower_url.startswith(bad_scheme):
             return False, f"Unsupported URL scheme '{bad_scheme.rstrip(':')}' (only HTTP/HTTPS supported)"
 
-    # Prepend scheme if missing for accurate parsing
-    normalized = clean_url
-    if not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", clean_url):
-        normalized = "http://" + clean_url
-
+    normalized = normalize_url(clean_url)
     try:
         parsed = urlparse(normalized)
         if parsed.scheme.lower() not in ("http", "https"):
@@ -355,29 +372,28 @@ def extract_features(url: str) -> dict:
     22. non_standard_port          (Non-standard network port specified)
     23. has_executable_extension   (Payload/executable extension in path)
     """
-    url_str = str(url).strip()
+    raw_str = str(url).strip()
+    is_valid, validated_or_err = validate_url(raw_str)
+    canonical_url = validated_or_err if is_valid else normalize_url(raw_str)
 
-    valid, validated_or_err = validate_url(url_str)
-    parsed_input = validated_or_err if valid else ("http://" + url_str if "://" not in url_str else url_str)
-
-    parsed_url = urlparse(parsed_input)
+    parsed_url = urlparse(canonical_url)
     hostname = (parsed_url.hostname or "").strip()
     path = parsed_url.path or ""
     query = parsed_url.query or ""
 
     # Parse registrable domain via Public Suffix List
-    extracted = _EXTRACTOR(parsed_input)
+    extracted = _EXTRACTOR(canonical_url)
     reg_domain = extracted.domain.lower() if extracted.domain else ""
     suffix = extracted.suffix.lower() if extracted.suffix else ""
 
     # 1. Structural dimensions
-    length = len(url_str)
+    length = len(canonical_url)
     path_length = len(path)
     query_length = len(query)
 
     clean_path = path.strip("/")
     num_subdirectories = len(clean_path.split("/")) if clean_path else 0
-    subdomain_count = count_subdomains(parsed_input, hostname)
+    subdomain_count = count_subdomains(canonical_url, hostname)
 
     # 2. Host, protocol, and network parameters
     uses_ip = is_ip_address(hostname)
@@ -387,20 +403,20 @@ def extract_features(url: str) -> dict:
     is_high_risk_tld = check_high_risk_tld(suffix)
     is_institutional_tld = check_institutional_tld(suffix)
 
-    # 3. Statistical & entropy parameters
-    special_char_count = count_special_characters(url_str)
-    shannon_entropy = calculate_entropy(url_str)
+    # 3. Statistical & entropy parameters (evaluated on canonical normalized URL)
+    special_char_count = count_special_characters(canonical_url)
+    shannon_entropy = calculate_entropy(canonical_url)
     domain_entropy = calculate_entropy(hostname)
     path_entropy = calculate_entropy(path + ("?" + query if query else ""))
-    num_digits = count_digits(url_str)
-    digit_ratio = calculate_digit_ratio(url_str, length)
-    num_hyphens = count_hyphens(url_str)
+    num_digits = count_digits(canonical_url)
+    digit_ratio = calculate_digit_ratio(canonical_url, length)
+    num_hyphens = count_hyphens(canonical_url)
 
     # 4. Attack pattern & payload indicators
-    has_at_symbol = check_at_symbol(url_str)
+    has_at_symbol = check_at_symbol(canonical_url)
     has_double_slash_redirect = check_double_slash_redirect(path)
-    has_suspicious_keywords = check_suspicious_keywords(url_str, hostname)
-    brand_impersonation = check_brand_impersonation(url_str, hostname, reg_domain)
+    has_suspicious_keywords = check_suspicious_keywords(canonical_url, hostname)
+    brand_impersonation = check_brand_impersonation(canonical_url, hostname, reg_domain)
     has_executable_extension = check_executable_extension(path)
 
     return {

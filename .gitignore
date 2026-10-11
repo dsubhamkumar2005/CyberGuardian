@@ -1,0 +1,39 @@
+# Python Bytecode and Caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets and Credentials (never commit)
+*.env
+*.env.local
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Scratch and Temporary Dumps
+scratch/
+tmp/
+*.tmp
+

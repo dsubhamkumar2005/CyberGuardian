@@ -22,7 +22,7 @@ INDEP_INPUT = os.path.join(DATASETS_DIR, "independent_validation.csv")
 INDEP_OUTPUT = os.path.join(FEATURES_DIR, "features_independent_validation.csv")
 
 FEATURE_NAMES = FEATURE_COLUMNS_V3
-META_COLUMNS = ["url", "label", "registrable_domain", "url_shape", "protocol", "source_category"]
+META_COLUMNS = ["url", "label", "registrable_domain", "url_shape", "protocol", "source_category", "source", "retrieved_at"]
 
 
 def generate_for_file(input_path: str, output_path: str, dataset_name: str):

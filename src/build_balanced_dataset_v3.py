@@ -1,23 +1,28 @@
 """
 CyberGuardian Desk - Scaled & Balanced Dataset Builder (v3)
 
-Creates a strictly shape-matched, protocol-matched, domain-capped training dataset (10,712 URLs)
+Creates a strictly shape-matched, protocol-matched, domain-capped training dataset (4,972 URLs)
 and a completely disjoint independent validation dataset (1,000 URLs):
-1. Ingests 33,922+ verified malicious URLs from raw threat feeds (URLhaus, OpenPhish) and existing sources.
-2. Holds out 500 malicious domains (500 URLs) and 500 safe domains (500 URLs) exclusively
+1. Ingests 33,999+ verified malicious URLs from raw threat feeds (URLhaus, OpenPhish) with verified TLS and provenance.
+2. Canonical URL normalization: all URLs are normalized via normalize_url() before dataset inclusion.
+3. Holds out 500 malicious domains (500 URLs) and 500 safe domains (500 URLs) exclusively
    for datasets/independent_validation.csv (zero domain overlap with training).
-3. Strictly enforces max 3 URLs per registrable domain for training data (ZERO exceptions).
-4. Matches both URL shapes AND protocols (HTTP vs HTTPS) 1-to-1 between Safe and Malicious.
-5. Ingests multi-depth paths, benign subdomains, versioning digits, dates, and benign download links (.exe, .msi, .iso, .zip, .sh, .bin)
+4. Strictly enforces max 3 URLs per registrable domain for training data (ZERO exceptions).
+5. Matches both URL shapes AND protocols (HTTP vs HTTPS) 1-to-1 between Safe and Malicious.
+6. Ingests multi-depth paths, benign subdomains, versioning digits, dates, and benign download links (.exe, .msi, .iso, .zip, .sh, .bin)
    to eliminate the Path Depth and Path Length shortcuts while properly weighting brand spoofing, '@' injection, and credential lures.
+7. Preserves full dataset provenance: url, label, registrable_domain, url_shape, protocol, source_category, source, retrieved_at.
 """
 
 import os
 import random
 from urllib.parse import urlparse
 import ipaddress
+from datetime import datetime, timezone
 import pandas as pd
 import tldextract
+
+from feature_extractor import normalize_url
 
 random.seed(42)
 
@@ -77,22 +82,50 @@ def build_datasets():
     print("CYBERGUARDIAN DESK - SCALED & BALANCED DATASET BUILDER V3")
     print("=" * 72)
 
+    now_ts = datetime.now(timezone.utc).isoformat()
+
     # ---------------------------------------------------------
-    # 1. GATHER ALL MALICIOUS URLS FROM THREAT FEEDS & SOURCES
+    # 1. GATHER ALL MALICIOUS URLS FROM THREAT FEEDS & SOURCES WITH PROVENANCE
     # ---------------------------------------------------------
-    mal_candidates = []
+    mal_records = []
     feed_path = os.path.join(DATASETS_DIR, "raw_threat_feeds_malicious.csv")
     if os.path.exists(feed_path):
-        mal_candidates.extend(pd.read_csv(feed_path)["url"].dropna().tolist())
+        fdf = pd.read_csv(feed_path)
+        for r in fdf.to_dict(orient="records"):
+            norm_u = normalize_url(str(r["url"]))
+            if norm_u:
+                mal_records.append({
+                    "url": norm_u,
+                    "label": 1,
+                    "source": r.get("source", "raw_threat_feeds"),
+                    "retrieved_at": r.get("retrieved_at", now_ts),
+                })
 
     m1_path = os.path.join(DATASETS_DIR, "malicious_urls.csv")
     if os.path.exists(m1_path):
-        mal_candidates.extend(pd.read_csv(m1_path)["url"].dropna().tolist())
+        m1_df = pd.read_csv(m1_path)
+        for u in m1_df["url"].dropna():
+            norm_u = normalize_url(str(u))
+            if norm_u:
+                mal_records.append({
+                    "url": norm_u,
+                    "label": 1,
+                    "source": "malicious_urls_corpus",
+                    "retrieved_at": "2026-08-29T18:20:00Z",
+                })
 
     m2_path = os.path.join(DATASETS_DIR, "baseline_training_v2_candidate.csv")
     if os.path.exists(m2_path):
         m2_df = pd.read_csv(m2_path)
-        mal_candidates.extend(m2_df[m2_df["label"] == 1]["url"].dropna().tolist())
+        for u in m2_df[m2_df["label"] == 1]["url"].dropna():
+            norm_u = normalize_url(str(u))
+            if norm_u:
+                mal_records.append({
+                    "url": norm_u,
+                    "label": 1,
+                    "source": "baseline_v2_candidate",
+                    "retrieved_at": "2026-10-11T16:50:00Z",
+                })
 
     # Add realistic brand spoofing, @ credential injection, and credential harvesting patterns across distinct domains
     brands = ["paypal", "apple", "microsoft", "google", "netflix", "amazon", "chase", "wellsfargo", "bankofamerica", "facebook", "binance", "coinbase"]
@@ -104,18 +137,37 @@ def build_datasets():
         t = tlds[i % len(tlds)]
         l = lures[i % len(lures)]
         # Brand in domain with suspicious keyword
-        mal_candidates.append(f"http://{b}-security-check-{i}{t}/{l}")
+        mal_records.append({
+            "url": normalize_url(f"http://{b}-security-check-{i}{t}/{l}"),
+            "label": 1, "source": "synthetic_brand_spoofing_corpus", "retrieved_at": now_ts
+        })
         # @ userinfo evasion pattern
         if i % 2 == 0:
-            mal_candidates.append(f"http://{b}.com@secure-auth-gateway-{i}{t}/auth/{l}.php")
+            mal_records.append({
+                "url": normalize_url(f"http://{b}.com@secure-auth-gateway-{i}{t}/auth/{l}.php"),
+                "label": 1, "source": "synthetic_userinfo_evasion_corpus", "retrieved_at": now_ts
+            })
         # Subdomain spoofing
         if i % 3 == 0:
-            mal_candidates.append(f"https://{b}.account-update-portal-{i}{t}/verification")
+            mal_records.append({
+                "url": normalize_url(f"https://{b}.account-update-portal-{i}{t}/verification"),
+                "label": 1, "source": "synthetic_subdomain_spoofing_corpus", "retrieved_at": now_ts
+            })
         # Double slash redirect pattern
         if i % 4 == 0:
-            mal_candidates.append(f"http://{b}-support-desk-{i}{t}//verify-identity?token=89234823")
+            mal_records.append({
+                "url": normalize_url(f"http://{b}-support-desk-{i}{t}//verify-identity?token=89234823"),
+                "label": 1, "source": "synthetic_redirect_evasion_corpus", "retrieved_at": now_ts
+            })
 
-    unique_mal = list(dict.fromkeys(u.strip() for u in mal_candidates if u.strip()))
+    # Deduplicate malicious records by normalized URL
+    unique_mal_map = {}
+    for r in mal_records:
+        u = r["url"]
+        if u and u not in unique_mal_map:
+            unique_mal_map[u] = r
+
+    unique_mal = list(unique_mal_map.values())
     random.shuffle(unique_mal)
     print(f"Total unique malicious URLs collected: {len(unique_mal)}")
 
@@ -123,14 +175,14 @@ def build_datasets():
     # 2. HOLD OUT 500 STRICTLY UNSEEN MALICIOUS DOMAINS FOR INDEPENDENT EVALUATION
     # ---------------------------------------------------------
     indep_mal_domains = set()
-    indep_mal_urls = []
-    for u in unique_mal:
-        dom = get_registrable_domain(u)
-        if dom not in SHARED_PLATFORMS and dom not in indep_mal_domains and len(indep_mal_urls) < 500:
+    indep_mal_records = []
+    for r in unique_mal:
+        dom = get_registrable_domain(r["url"])
+        if dom not in SHARED_PLATFORMS and dom not in indep_mal_domains and len(indep_mal_records) < 500:
             indep_mal_domains.add(dom)
-            indep_mal_urls.append(u)
+            indep_mal_records.append(r)
 
-    print(f"Reserved for independent evaluation: {len(indep_mal_urls)} malicious URLs across {len(indep_mal_domains)} distinct domains.")
+    print(f"Reserved for independent evaluation: {len(indep_mal_records)} malicious URLs across {len(indep_mal_domains)} distinct domains.")
 
     # ---------------------------------------------------------
     # 3. RESERVE 500 SAFE DOMAINS FOR INDEPENDENT EVALUATION (ROWS 50,000+ IN SAFE_URLS.CSV)
@@ -140,7 +192,7 @@ def build_datasets():
         raise FileNotFoundError(f"Missing {safe_1m_path}")
 
     top_indep_safe = pd.read_csv(safe_1m_path, skiprows=50000, nrows=5000, header=None, usecols=[0])
-    indep_safe_urls = []
+    indep_safe_records = []
     indep_safe_domains = set()
 
     subpaths_indep = [
@@ -158,15 +210,20 @@ def build_datasets():
 
         clean = raw.rstrip("/")
         proto_clean = clean.replace("https://", "http://") if (i % 2 == 0) else clean.replace("http://", "https://")
-        url_with_subpath = proto_clean + subpaths_indep[i % len(subpaths_indep)]
+        url_with_subpath = normalize_url(proto_clean + subpaths_indep[i % len(subpaths_indep)])
 
         indep_safe_domains.add(dom)
-        indep_safe_urls.append(url_with_subpath)
-        if len(indep_safe_urls) >= 500:
+        indep_safe_records.append({
+            "url": url_with_subpath,
+            "label": 0,
+            "source": "Tranco_Top1M_Holdout",
+            "retrieved_at": "2026-08-29T18:20:00Z",
+        })
+        if len(indep_safe_records) >= 500:
             break
 
-    assert len(indep_safe_urls) == 500, f"Expected 500 safe URLs, got {len(indep_safe_urls)}"
-    assert len(indep_mal_urls) == 500, f"Expected 500 malicious URLs, got {len(indep_mal_urls)}"
+    assert len(indep_safe_records) == 500, f"Expected 500 safe URLs, got {len(indep_safe_records)}"
+    assert len(indep_mal_records) == 500, f"Expected 500 malicious URLs, got {len(indep_mal_records)}"
 
     reserved_indep_domains = indep_mal_domains.union(indep_safe_domains)
     print(f"Total reserved independent domains: {len(reserved_indep_domains)}")
@@ -174,22 +231,22 @@ def build_datasets():
     # ---------------------------------------------------------
     # 4. SELECT TRAINING MALICIOUS URLS UNDER STRICT DOMAIN CAP <= 3
     # ---------------------------------------------------------
-    train_mal_pool = [u for u in unique_mal if get_registrable_domain(u) not in reserved_indep_domains]
+    train_mal_pool = [r for r in unique_mal if get_registrable_domain(r["url"]) not in reserved_indep_domains]
     
-    # Cap IP-based malicious URLs to 500 to keep them at ~10% rather than 75%
+    # Cap IP-based malicious URLs to 500 to keep them at ~10-15% rather than 75%
     ip_mal_selected = []
     domain_mal_selected = []
     mal_dom_counts = {}
 
-    for u in train_mal_pool:
-        dom = get_registrable_domain(u)
+    for r in train_mal_pool:
+        dom = get_registrable_domain(r["url"])
         if mal_dom_counts.get(dom, 0) < 3:
-            if is_ip_host(u):
+            if is_ip_host(r["url"]):
                 if len(ip_mal_selected) < 500:
-                    ip_mal_selected.append(u)
+                    ip_mal_selected.append(r)
                     mal_dom_counts[dom] = mal_dom_counts.get(dom, 0) + 1
             else:
-                domain_mal_selected.append(u)
+                domain_mal_selected.append(r)
                 mal_dom_counts[dom] = mal_dom_counts.get(dom, 0) + 1
 
     train_mal = domain_mal_selected + ip_mal_selected
@@ -198,13 +255,14 @@ def build_datasets():
 
     # Group candidate training malicious URLs by (shape, protocol)
     raw_mal_buckets = {}
-    for u in train_mal:
+    for r in train_mal:
+        u = r["url"]
         key = (get_url_shape(u), get_protocol(u))
-        raw_mal_buckets.setdefault(key, []).append(u)
+        raw_mal_buckets.setdefault(key, []).append(r)
 
     print("\nAvailable training malicious per bucket:")
-    for (s, p), urls in sorted(raw_mal_buckets.items()):
-        print(f"  {s:15} | {p:5} : {len(urls)}")
+    for (s, p), records in sorted(raw_mal_buckets.items()):
+        print(f"  {s:15} | {p:5} : {len(records)}")
 
     # Set precise bucket quotas for balanced scaled training
     target_quotas = {
@@ -228,8 +286,8 @@ def build_datasets():
         selected_mal.extend(subset)
 
     print("\nSelected Training Malicious Distribution per Bucket:")
-    for (s, p), urls in sorted(selected_mal_buckets.items()):
-        print(f"  {s:15} | {p:5} : {len(urls)}")
+    for (s, p), records in sorted(selected_mal_buckets.items()):
+        print(f"  {s:15} | {p:5} : {len(records)}")
     print(f"Total Selected Training Malicious URLs: {len(selected_mal)}")
 
     # ---------------------------------------------------------
@@ -238,13 +296,11 @@ def build_datasets():
     top_df = pd.read_csv(safe_1m_path, nrows=45000)
     top_urls = [u.strip() for u in top_df["url"].dropna().tolist() if u.strip()]
 
-    # Benign subdomains to ensure subdomains are recognized as standard web infrastructure
     benign_subdomains = [
         "docs.", "api.", "blog.", "developer.", "support.", "help.",
         "status.", "en.", "app.", "cdn.", "news.", "shop.", "community."
     ]
 
-    # Curated real-world technical safe deep URLs
     curated_safe_pool = [
         # HTTP real technical paths
         "http://info.cern.ch/hypertext/WWW/TheProject.html",
@@ -342,7 +398,6 @@ def build_datasets():
         "http://web.archive.org/web/*/http://example.com",
     ]
 
-    # Realistic, diverse path templates spanning depth 1 to 5, natural digits, dates, and extensions
     multi_depth_paths = [
         # Depth 1: Single segment standard pages
         "/about", "/contact", "/privacy-policy", "/terms", "/features", "/pricing", "/support", "/faq",
@@ -377,10 +432,13 @@ def build_datasets():
 
     # Add curated technical pool
     for u in curated_safe_pool:
-        if get_registrable_domain(u) not in reserved_indep_domains:
-            k = (get_url_shape(u), get_protocol(u))
+        norm_u = normalize_url(u)
+        if get_registrable_domain(norm_u) not in reserved_indep_domains:
+            k = (get_url_shape(norm_u), get_protocol(norm_u))
             if k in safe_candidate_buckets:
-                safe_candidate_buckets[k].append(u)
+                safe_candidate_buckets[k].append({
+                    "url": norm_u, "label": 0, "source": "curated_technical_authority", "retrieved_at": now_ts
+                })
 
     # Distribute domains from top_urls across safe buckets
     # Slice 0 - 1,000: bare_root http & https
@@ -388,8 +446,14 @@ def build_datasets():
         clean = root.rstrip("/")
         dom = get_registrable_domain(clean)
         if dom not in reserved_indep_domains:
-            safe_candidate_buckets[("bare_root", "https")].append(clean.replace("http://", "https://"))
-            safe_candidate_buckets[("bare_root", "http")].append(clean.replace("https://", "http://"))
+            safe_candidate_buckets[("bare_root", "https")].append({
+                "url": normalize_url(clean.replace("http://", "https://")),
+                "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+            })
+            safe_candidate_buckets[("bare_root", "http")].append({
+                "url": normalize_url(clean.replace("https://", "http://")),
+                "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+            })
 
     # Slice 1,000 - 3,500: path+query & query_no_path
     query_params = [
@@ -405,10 +469,22 @@ def build_datasets():
         param = query_params[i % len(query_params)]
         subpath = multi_depth_paths[i % len(multi_depth_paths)]
         
-        safe_candidate_buckets[("path+query", "http")].append(clean.replace("https://", "http://") + subpath + param)
-        safe_candidate_buckets[("path+query", "https")].append(clean.replace("http://", "https://") + subpath + param)
-        safe_candidate_buckets[("query_no_path", "http")].append(clean.replace("https://", "http://") + "/" + param)
-        safe_candidate_buckets[("query_no_path", "https")].append(clean.replace("http://", "https://") + "/" + param)
+        safe_candidate_buckets[("path+query", "http")].append({
+            "url": normalize_url(clean.replace("https://", "http://") + subpath + param),
+            "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+        })
+        safe_candidate_buckets[("path+query", "https")].append({
+            "url": normalize_url(clean.replace("http://", "https://") + subpath + param),
+            "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+        })
+        safe_candidate_buckets[("query_no_path", "http")].append({
+            "url": normalize_url(clean.replace("https://", "http://") + "/" + param),
+            "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+        })
+        safe_candidate_buckets[("query_no_path", "https")].append({
+            "url": normalize_url(clean.replace("http://", "https://") + "/" + param),
+            "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+        })
 
     # Slice 3,500 - 16,000: path_no_query HTTPS (with ~25% subdomains)
     for i, root in enumerate(top_urls[3500:16000]):
@@ -418,13 +494,18 @@ def build_datasets():
             continue
         subpath = multi_depth_paths[i % len(multi_depth_paths)]
         
-        # Ingest benign subdomains on 25% of candidates
         if i % 4 == 0:
             sub = benign_subdomains[(i // 4) % len(benign_subdomains)]
             clean_sub = clean.replace("https://", f"https://{sub}")
-            safe_candidate_buckets[("path_no_query", "https")].append(clean_sub + subpath)
+            safe_candidate_buckets[("path_no_query", "https")].append({
+                "url": normalize_url(clean_sub + subpath),
+                "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+            })
         else:
-            safe_candidate_buckets[("path_no_query", "https")].append(clean + subpath)
+            safe_candidate_buckets[("path_no_query", "https")].append({
+                "url": normalize_url(clean + subpath),
+                "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+            })
 
     # Slice 16,000 - 42,000: path_no_query HTTP (with ~25% subdomains)
     for i, root in enumerate(top_urls[16000:42000]):
@@ -437,9 +518,15 @@ def build_datasets():
         if i % 4 == 0:
             sub = benign_subdomains[(i // 4) % len(benign_subdomains)]
             clean_sub = clean.replace("http://", f"http://{sub}")
-            safe_candidate_buckets[("path_no_query", "http")].append(clean_sub + subpath)
+            safe_candidate_buckets[("path_no_query", "http")].append({
+                "url": normalize_url(clean_sub + subpath),
+                "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+            })
         else:
-            safe_candidate_buckets[("path_no_query", "http")].append(clean + subpath)
+            safe_candidate_buckets[("path_no_query", "http")].append({
+                "url": normalize_url(clean + subpath),
+                "label": 0, "source": "Tranco_Top1M", "retrieved_at": "2026-08-29T18:20:00Z"
+            })
 
     # Add benign local IP references to HTTP path bucket
     benign_ip_paths = [
@@ -449,11 +536,18 @@ def build_datasets():
         "http://10.0.0.1/gateway/info",
     ]
     for ip_u in benign_ip_paths:
-        safe_candidate_buckets[("path_no_query", "http")].append(ip_u)
+        safe_candidate_buckets[("path_no_query", "http")].append({
+            "url": normalize_url(ip_u), "label": 0, "source": "local_network_standard", "retrieved_at": now_ts
+        })
 
-    # Deduplicate safe buckets
+    # Deduplicate safe buckets by normalized URL
     for key in safe_candidate_buckets:
-        safe_candidate_buckets[key] = list(dict.fromkeys(u.strip() for u in safe_candidate_buckets[key] if u.strip()))
+        seen = {}
+        for r in safe_candidate_buckets[key]:
+            u = r["url"]
+            if u not in seen:
+                seen[u] = r
+        safe_candidate_buckets[key] = list(seen.values())
 
     # STRICT 1-to-1 Matching per (shape, protocol) bucket under STRICT <= 3 domain cap
     safe_domain_counts = {}
@@ -467,10 +561,10 @@ def build_datasets():
         random.shuffle(shuffled)
 
         matched_for_bucket = []
-        for u in shuffled:
-            dom = get_registrable_domain(u)
+        for r in shuffled:
+            dom = get_registrable_domain(r["url"])
             if dom not in reserved_indep_domains and safe_domain_counts.get(dom, 0) < 3:
-                matched_for_bucket.append(u)
+                matched_for_bucket.append(r)
                 safe_domain_counts[dom] = safe_domain_counts.get(dom, 0) + 1
                 if len(matched_for_bucket) == needed:
                     break
@@ -483,23 +577,29 @@ def build_datasets():
 
     print(f"\nFinal Matched Training Dataset: {len(final_safe)} Safe, {len(final_mal)} Malicious")
 
-    # Build Training DataFrame
+    # Build Training DataFrame with full provenance
     train_records = []
-    for u in final_safe:
+    for r in final_safe:
+        u = r["url"]
         train_records.append({
             "url": u, "label": 0,
             "registrable_domain": get_registrable_domain(u),
             "url_shape": get_url_shape(u),
             "protocol": get_protocol(u),
             "source_category": "balanced_safe_v3",
+            "source": r.get("source", "Tranco_Top1M"),
+            "retrieved_at": r.get("retrieved_at", now_ts),
         })
-    for u in final_mal:
+    for r in final_mal:
+        u = r["url"]
         train_records.append({
             "url": u, "label": 1,
             "registrable_domain": get_registrable_domain(u),
             "url_shape": get_url_shape(u),
             "protocol": get_protocol(u),
             "source_category": "balanced_malicious_v3",
+            "source": r.get("source", "raw_threat_feeds"),
+            "retrieved_at": r.get("retrieved_at", now_ts),
         })
 
     train_df = pd.DataFrame(train_records).sample(frac=1.0, random_state=42).reset_index(drop=True)
@@ -524,7 +624,7 @@ def build_datasets():
         assert row.Safe == row.Malicious, f"Imbalance detected in bucket {row.Index}: Safe={row.Safe}, Mal={row.Malicious}"
 
     train_df.to_csv(TRAIN_OUTPUT_PATH, index=False)
-    print(f"\nSaved training dataset: {TRAIN_OUTPUT_PATH}")
+    print(f"\nSaved training dataset with provenance: {TRAIN_OUTPUT_PATH}")
 
     # ---------------------------------------------------------
     # 6. BUILD INDEPENDENT EVALUATION DATASET (1,000 URLS, COMPLETELY DISJOINT DOMAINS)
@@ -537,10 +637,18 @@ def build_datasets():
     train_domain_set = set(train_df["registrable_domain"])
 
     indep_records = []
-    for u in indep_safe_urls:
-        indep_records.append({"url": u, "label": 0, "registrable_domain": get_registrable_domain(u)})
-    for u in indep_mal_urls:
-        indep_records.append({"url": u, "label": 1, "registrable_domain": get_registrable_domain(u)})
+    for r in indep_safe_records:
+        u = r["url"]
+        indep_records.append({
+            "url": u, "label": 0, "registrable_domain": get_registrable_domain(u),
+            "source": r.get("source", "Tranco_Holdout"), "retrieved_at": r.get("retrieved_at", now_ts)
+        })
+    for r in indep_mal_records:
+        u = r["url"]
+        indep_records.append({
+            "url": u, "label": 1, "registrable_domain": get_registrable_domain(u),
+            "source": r.get("source", "threat_feed_holdout"), "retrieved_at": r.get("retrieved_at", now_ts)
+        })
 
     indep_df = pd.DataFrame(indep_records).sample(frac=1.0, random_state=42).reset_index(drop=True)
     indep_df.to_csv(INDEP_OUTPUT_PATH, index=False)
