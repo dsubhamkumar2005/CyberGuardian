@@ -1,47 +1,33 @@
-# CyberGuardian Desk — Member 1 (UI)
+# CyberGuardian Desk
 
-Desktop UI for **CyberGuardian Desk**: paste URL / QR / clipboard → features → ML verdict with reasons → local alert.
+CyberGuardian Desk is a desktop application for scanning URLs, extracting security features, and displaying an ML-based verdict with reasons.
 
-Privacy default: **everything stays on this PC**. History is local SQLite (`data/cyberguardian.sqlite`).
+## Run on Windows
 
-## Run (Windows)
+Activate the existing virtual environment and install dependencies:
 
 ```powershell
-cd d:\Cursor\cyberguardian_desk
-python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python run.py
 ```
 
-Edit names, college, and team in `config.py` before the presentation.
+## Features
 
-## What this UI already does
+- URL scanning and validation
+- QR and clipboard input support
+- Production ML classification using the v3 model
+- Risk information and explanations
+- Local SQLite scan history
 
-- Scan pasted URLs and QR images (or pasted QR payload)
-- Explainable reasons + engineered feature dump
-- Opt-in **passive clipboard** URL watching
-- Local history + analytics bars
-- Privacy page (no cloud, SQLite, k-anonymity prefix helper)
-- Hardware page ready for Member 5 (ESP32 stub + demo inject)
-- Team / thank-you page
+## Privacy
 
-## Teammates
+Scan history is stored locally on this PC.
 
-| Member | Owns | Plug-in file |
-| --- | --- | --- |
-| 1 | Desktop UI | `ui/` |
-| 2 | AI/ML | `members/ml/classifier.py` |
-| 3 | Input processing | `members/input_processing/extractor.py` |
-| 4 | Backend / analytics | `members/backend/store.py` |
-| 5 | Hardware | `members/hardware/device.py` |
+## Machine Learning Documentation
 
-Shared types: `core/contracts.py`. Glue: `core/pipeline.py`.
+The production classifier uses 23 cybersecurity features. The ML implementation, model evaluation methodology, and experimental details are documented in [README_ML.md](README_ML.md).
 
-See **INTEGRATION.md**. When you have Member 2–5 code, paste it here and the UI can call it without a rewrite.
+## Team Integration
 
-Optional extras (QR decode, serial, real sklearn model):
-
-```powershell
-pip install -r requirements-optional.txt
-```
+The desktop UI and production ML classifier are integrated in this repository. The model and feature-order metadata are stored under `models/`.

@@ -3,7 +3,10 @@ CyberGuardian Desk - URL Classifier CLI Wrapper
 Forwards calls directly to classifier.py.
 """
 import sys
-from .classifier import classify, main_cli
+if __package__:
+    from .classifier import classify, main_cli
+else:
+    from classifier import classify, main_cli
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -24,3 +27,4 @@ if __name__ == "__main__":
                 print(f"  {k:26}: {v}")
     else:
         main_cli()
+
