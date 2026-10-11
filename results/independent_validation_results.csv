@@ -1,0 +1,2 @@
+accuracy,precision_malicious,recall_malicious,f1_malicious
+0.875,0.8048780487804879,0.99,0.8878923766816144

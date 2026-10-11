@@ -1,53 +1,47 @@
 """
-Feature Generation Script (v3)
+CyberGuardian Desk - Feature Generation Script (v3)
 
-Extracts all 21 security features from datasets/baseline_training_v3.csv
-and outputs features/features_v3.csv with complete metadata.
+Extracts all 23 security features from:
+1. datasets/baseline_training_v3.csv -> features/features_v3.csv
+2. datasets/independent_validation.csv -> features/features_independent_validation.csv
 """
 
 import os
 import numpy as np
 import pandas as pd
-from feature_extractor import extract_features
+from feature_extractor import extract_features, FEATURE_COLUMNS_V3
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INPUT_PATH = os.path.join(BASE_DIR, "datasets", "baseline_training_v3.csv")
-OUTPUT_PATH = os.path.join(BASE_DIR, "features", "features_v3.csv")
+DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
+FEATURES_DIR = os.path.join(BASE_DIR, "features")
 
-FEATURE_NAMES = [
-    # Core 16
-    "length", "path_length", "query_length", "subdomain_count",
-    "num_subdirectories", "uses_ip", "has_https", "special_char_count",
-    "shannon_entropy", "num_digits", "digit_ratio", "num_hyphens",
-    "has_at_symbol", "has_double_slash_redirect", "is_shortened",
-    "has_suspicious_keywords",
-    # Advanced 6
-    "domain_entropy", "path_entropy", "is_high_risk_tld",
-    "is_institutional_tld", "brand_impersonation", "non_standard_port",
-]
+TRAIN_INPUT = os.path.join(DATASETS_DIR, "baseline_training_v3.csv")
+TRAIN_OUTPUT = os.path.join(FEATURES_DIR, "features_v3.csv")
 
-META_COLUMNS = [
-    "url", "label", "registrable_domain", "url_shape", "protocol", "source_category"
-]
+INDEP_INPUT = os.path.join(DATASETS_DIR, "independent_validation.csv")
+INDEP_OUTPUT = os.path.join(FEATURES_DIR, "features_independent_validation.csv")
+
+FEATURE_NAMES = FEATURE_COLUMNS_V3
+META_COLUMNS = ["url", "label", "registrable_domain", "url_shape", "protocol", "source_category"]
 
 
-def main():
-    print("=" * 68)
-    print("CYBERGUARDIAN DESK - V3 FEATURE GENERATION (21 FEATURES)")
-    print("=" * 68)
+def generate_for_file(input_path: str, output_path: str, dataset_name: str):
+    print("\n" + "=" * 70)
+    print(f"GENERATING {len(FEATURE_NAMES)} FEATURES FOR {dataset_name}")
+    print("=" * 70)
 
-    if not os.path.exists(INPUT_PATH):
-        raise FileNotFoundError(f"Input dataset not found at {INPUT_PATH}. Run build_balanced_dataset_v3.py first.")
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input dataset not found at {input_path}")
 
-    df = pd.read_csv(INPUT_PATH)
-    print(f"Loaded {len(df)} URLs from {INPUT_PATH}")
+    df = pd.read_csv(input_path)
+    print(f"Loaded {len(df)} URLs from {input_path}")
 
     rows = []
     for idx, row in enumerate(df.to_dict(orient="records"), start=1):
         url = row["url"]
         feats = extract_features(url)
 
-        out = {k: row.get(k, "") for k in META_COLUMNS}
+        out = {k: row.get(k, "") for k in META_COLUMNS if k in row}
         out.update({name: feats[name] for name in FEATURE_NAMES})
         rows.append(out)
 
@@ -57,20 +51,25 @@ def main():
     result = pd.DataFrame(rows)
     result[FEATURE_NAMES] = result[FEATURE_NAMES].apply(pd.to_numeric, errors="raise")
 
-    # Safety checks
-    if result[FEATURE_NAMES].isna().any().any():
-        raise ValueError("Missing values found in extracted numeric features.")
-    if not np.isfinite(result[FEATURE_NAMES].to_numpy(dtype=float)).all():
-        raise ValueError("Non-finite values found in extracted features.")
+    # Safety assertions
+    assert not result[FEATURE_NAMES].isna().any().any(), "Missing values found in extracted features"
+    assert np.isfinite(result[FEATURE_NAMES].to_numpy(dtype=float)).all(), "Non-finite values found in extracted features"
+    assert len(FEATURE_NAMES) == 23, f"Expected exactly 23 features, found {len(FEATURE_NAMES)}"
 
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    result.to_csv(OUTPUT_PATH, index=False)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    result.to_csv(output_path, index=False)
 
-    print("\nFeature generation completed.")
-    print(f"Output: {OUTPUT_PATH}")
+    print(f"Output saved: {output_path}")
     print(f"Rows: {len(result)}; Features: {len(FEATURE_NAMES)}")
-    print("\nClass distribution:")
+    print("Class counts:")
     print(result["label"].value_counts().sort_index().rename(index={0: "Safe", 1: "Malicious"}))
+    return result
+
+
+def main():
+    generate_for_file(TRAIN_INPUT, TRAIN_OUTPUT, "TRAINING DATASET (V3)")
+    if os.path.exists(INDEP_INPUT):
+        generate_for_file(INDEP_INPUT, INDEP_OUTPUT, "INDEPENDENT EVALUATION DATASET")
 
 
 if __name__ == "__main__":

@@ -20,5 +20,6 @@
   "is_high_risk_tld",
   "is_institutional_tld",
   "brand_impersonation",
-  "non_standard_port"
+  "non_standard_port",
+  "has_executable_extension"
 ]
