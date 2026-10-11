@@ -61,8 +61,27 @@ class InputProcessor:
     @staticmethod
     def _normalise_url(value: str) -> str:
         value = value.strip().strip("<>'\"")
-        if value and "://" not in value:
+
+        if not value:
+            return ""
+
+        # Reject explicit non-web schemes.
+        parsed = urlparse(value)
+        if parsed.scheme and parsed.scheme.lower() not in {"http", "https"}:
+            return value
+
+        # Add HTTPS only to inputs that look like a hostname or IP address.
+        if "://" not in value:
+            candidate = value.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+            if not candidate or "." not in candidate:
+                return value
             value = "https://" + value
+
+        # Validate the resulting web URL.
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return value
+
         return value
 
     @staticmethod
@@ -82,55 +101,43 @@ class InputProcessor:
             return ""
 
 
+
 class MLClassifier:
-    """Uses the supplied Random Forest if pandas/joblib are installed; otherwise local scoring."""
+    """Adapter for the production 23-feature URL classifier."""
 
-    def predict(self, features: FeatureSet) -> tuple[VerdictLabel, float, str, list[str]]:
-        prediction = self._member_model(features)
-        if prediction is not None:
-            malicious, confidence = prediction
-            label = VerdictLabel.MALICIOUS if malicious else VerdictLabel.SAFE
-            return label, confidence, "Member ML Random Forest", self._reasons(features)
+    def predict(
+        self, url: str
+    ) -> tuple[VerdictLabel, float, str, list[str], FeatureSet, dict]:
+        from src.classifier import classify
 
-        risk = self._risk(features)
-        label = VerdictLabel.MALICIOUS if risk >= 0.72 else VerdictLabel.SUSPICIOUS if risk >= 0.42 else VerdictLabel.SAFE
-        confidence = max(risk, 1 - risk) if label != VerdictLabel.SUSPICIOUS else 0.58
-        return label, round(confidence, 4), "Local compatibility scorer", self._reasons(features)
+        result = classify(url)
 
-    @staticmethod
-    def _risk(features: FeatureSet) -> float:
-        v = features.values
-        return min(0.96, 0.06 + .35 * v["uses_ip"] + .18 * (1 - v["has_https"]) + .18 * min(v["subdomain_count"] / 3, 1) + .13 * min(v["special_char_count"] / 10, 1) + .10 * min(v["length"] / 100, 1) + .10 * min(v["shannon_entropy"] / 5, 1))
+        verdict_text = result["verdict"]
+        if verdict_text == "Safe":
+            label = VerdictLabel.SAFE
+        elif verdict_text == "Malicious":
+            label = VerdictLabel.MALICIOUS
+        else:
+            label = VerdictLabel.UNKNOWN
 
-    @staticmethod
-    def _reasons(features: FeatureSet) -> list[str]:
-        v = features.values
-        reasons = []
-        if v["uses_ip"]: reasons.append("Uses an IP address instead of a domain")
-        if not v["has_https"]: reasons.append("The link does not use HTTPS")
-        if v["subdomain_count"] > 2: reasons.append("Contains multiple subdomains")
-        if v["special_char_count"] > 6: reasons.append("Contains an unusually high number of special characters")
-        if v["length"] > 75: reasons.append("URL is unusually long")
-        if v["shannon_entropy"] > 4: reasons.append("URL has high character randomness")
-        return reasons or ["No dominant phishing indicators were found."]
+        features = FeatureSet(
+            values={
+                key: float(value)
+                for key, value in result.get("features", {}).items()
+                if isinstance(value, (int, float, bool))
+            },
+            human_reasons=list(result.get("reasons", [])),
+        )
 
-    @staticmethod
-    def _member_model(features: FeatureSet) -> tuple[bool, float] | None:
-        if not ML_ARCHIVE.exists(): return None
-        try:
-            import io
-            import joblib
-            import pandas as pd
-            with zipfile.ZipFile(ML_ARCHIVE) as archive:
-                raw = archive.read("CyberGuardian-josh-ml/models/random_forest_model.pkl")
-            model = joblib.load(io.BytesIO(raw))
-            columns = ["length", "subdomain_count", "uses_ip", "has_https", "special_char_count", "shannon_entropy"]
-            row = pd.DataFrame([[features.values[c] for c in columns]], columns=columns)
-            predicted = int(model.predict(row)[0])
-            probability = float(model.predict_proba(row)[0][predicted])
-            return bool(predicted), probability
-        except Exception:
-            return None
+        return (
+            label,
+            float(result["confidence"]),
+            "Production Random Forest v3",
+            list(result.get("reasons", [])),
+            features,
+            result,
+        )
+
 
 
 class LocalStore:

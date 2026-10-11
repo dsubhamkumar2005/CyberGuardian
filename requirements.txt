@@ -1,2 +1,11 @@
+# CyberGuardian desktop application
 customtkinter>=5.2.2
 pillow>=10.0.0
+
+# Production ML classifier dependencies (pinned by ML branch)
+scikit-learn==1.9.0
+pandas==3.0.5
+numpy==2.5.1
+joblib==1.5.3
+tldextract==5.4.0
+requests==2.34.2

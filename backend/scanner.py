@@ -104,15 +104,15 @@ def scan_url(url):
         "confidence": round(result["confidence"] * 100, 2),
 
         "safe_probability": round(
-            result["safe_probability"] * 100, 2
+            result["prob_safe"] * 100, 2
         ),
 
         "phishing_probability": round(
-            result["phishing_probability"] * 100, 2
+            result["prob_malicious"] * 100, 2
         ),
 
         "risk_score": round(
-            result["phishing_probability"] * 100
+            result["prob_malicious"] * 100
         ),
 
         "features": all_features,

@@ -1,0 +1,17 @@
+feature,importance
+path_length,0.2983523143502496
+special_char_count,0.14500929784311936
+subdomain_count,0.11553683318325893
+num_subdirectories,0.09192226594307308
+has_https,0.09143320882259613
+length,0.07173464846056449
+shannon_entropy,0.06061209992737672
+digit_ratio,0.04501008590618527
+num_digits,0.044291283490866494
+num_hyphens,0.034232884388750946
+is_shortened,0.0015879709721816826
+has_suspicious_keywords,0.00027710671177729704
+uses_ip,0.0
+query_length,0.0
+has_double_slash_redirect,0.0
+has_at_symbol,0.0
