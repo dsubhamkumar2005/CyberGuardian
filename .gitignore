@@ -1,3 +1,6 @@
-.venv/
 __pycache__/
+.venv/
 *.pyc
+data/*.sqlite
+.idea/
+.vscode/
