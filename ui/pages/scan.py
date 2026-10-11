@@ -86,10 +86,29 @@ class ScanPage(ctk.CTkFrame):
         raw = self.qr_fallback.get().strip()
         if raw or self.qr_path: self._run(ScanRequest(source="qr", raw_input=raw, image_path=self.qr_path))
 
+    
     def _run(self, request):
-        self.url_status.configure(text="ANALYZING LOCAL SIGNALS...", text_color=PALETTE["suspicious"]); self.update_idletasks()
-        result = self.pipeline.scan(request); self.show_result(result)
-        self.url_status.configure(text="ANALYSIS COMPLETE • SAVED LOCALLY", text_color=PALETTE["safe"]); self.on_alert(result)
+        self.url_status.configure(
+            text="ANALYZING LOCAL SIGNALS...",
+            text_color=PALETTE["suspicious"],
+        )
+        self.update_idletasks()
+
+        try:
+            result = self.pipeline.scan(request)
+        except Exception as exc:
+            self.url_status.configure(
+                text=f"ANALYSIS FAILED: {type(exc).__name__}",
+                text_color=PALETTE["malicious"],
+            )
+            return
+
+        self.show_result(result)
+        self.url_status.configure(
+            text="ANALYSIS COMPLETE - SAVED LOCALLY",
+            text_color=PALETTE["safe"],
+        )
+        self.on_alert(result)
 
     def show_result(self, result: ScanResult):
         values, color = result.features.values, PALETTE.get(result.verdict.value, PALETTE["accent"])
