@@ -27,9 +27,11 @@ def main():
     fn = rf[(rf["label"] == 1) & (rf["prediction"] == 0)]
     fp = rf[(rf["label"] == 0) & (rf["prediction"] == 1)]
 
+    total_mal = len(rf[rf["label"] == 1])
+    total_safe = len(rf[rf["label"] == 0])
     print(f"\nTotal held-out URL predictions: {len(rf)}")
-    print(f"False Negatives (malicious predicted safe): {len(fn)} / 664 ({len(fn)/664*100:.2f}%)")
-    print(f"False Positives (safe predicted malicious): {len(fp)} / 664 ({len(fp)/664*100:.2f}%)")
+    print(f"False Negatives (malicious predicted safe): {len(fn)} / {total_mal} ({len(fn)/total_mal*100:.2f}%)")
+    print(f"False Positives (safe predicted malicious): {len(fp)} / {total_safe} ({len(fp)/total_safe*100:.2f}%)")
 
     errors = rf[rf["label"] != rf["prediction"]].copy()
     errors.to_csv(OUTPUT_PATH, index=False)

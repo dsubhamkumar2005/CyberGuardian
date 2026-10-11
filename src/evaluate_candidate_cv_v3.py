@@ -186,6 +186,9 @@ def main():
     summary_path = os.path.join(RESULTS_DIR, "domain_cv_v3_summary.csv")
     summary_df.to_csv(summary_path, index=False)
 
+    oof_path = os.path.join(RESULTS_DIR, "domain_cv_v3_oof_predictions.csv")
+    oof_df.to_csv(oof_path, index=False)
+
     # Feature Importance Summary
     imp_df = pd.DataFrame(importance_records)
     if not imp_df.empty:
@@ -235,7 +238,7 @@ def main():
         indep_metrics = calculate_metrics(indep_y, indep_preds)
         indep_cm = confusion_matrix(indep_y, indep_preds, labels=[0, 1])
 
-        print(f"Independent Test URLs: {len(indep_df)} (100 Safe, 100 Malicious, 0 domain overlap)")
+        print(f"Independent Test URLs: {len(indep_df)} ({sum(indep_y == 0)} Safe, {sum(indep_y == 1)} Malicious, 0 domain overlap)")
         print(f"Accuracy : {indep_metrics['accuracy']:.4f}")
         print(f"Precision: {indep_metrics['precision_malicious']:.4f}")
         print(f"Recall   : {indep_metrics['recall_malicious']:.4f}")
