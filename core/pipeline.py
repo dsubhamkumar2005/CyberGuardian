@@ -1,10 +1,11 @@
-"""UI-facing orchestration. Member 1 owns this glue; teammates own the callees."""
+﻿"""UI-facing orchestration. Member 1 owns this glue; teammates own the callees."""
 
 from __future__ import annotations
 
 import hashlib
+from urllib.parse import urlparse
 
-from core.contracts import ScanRequest, ScanResult
+from core.contracts import ScanRequest, ScanResult, FeatureSet, VerdictLabel
 from core.adapters import HardwareBridge, InputProcessor, LocalStore, MLClassifier
 
 
@@ -15,9 +16,29 @@ class GuardianPipeline:
         self.store = LocalStore()
         self.hardware = HardwareBridge()
 
-    
     def scan(self, request: ScanRequest) -> ScanResult:
         extracted = self.input_proc.extract(request)
+        parsed = urlparse(extracted.url)
+        hostname = parsed.hostname or ""
+
+        # Basic validation before classification.
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or "." not in hostname
+        ):
+            result = ScanResult(
+                request=request,
+                extracted=extracted,
+                features=FeatureSet(values={}),
+                verdict=VerdictLabel.UNKNOWN,
+                confidence=0.0,
+                model_name="URL validation",
+                reasons=["Invalid URL format. Enter a valid domain or IP address."],
+                extra={"validation_error": True},
+            )
+            self.store.save_scan(result)
+            return result
 
         verdict, confidence, model_name, reasons, features, model_output = (
             self.ml.predict(extracted.url)
@@ -42,11 +63,10 @@ class GuardianPipeline:
         self.store.save_scan(result)
         return result
 
-
     def password_k_anonymity_prefix(self, password: str) -> tuple[str, str]:
-        """HIBP-style k-anonymity: only the first 5 SHA-1 hex chars would ever leave the machine.
+        """Return a SHA-1 prefix and suffix for a future k-anonymity lookup.
 
-        The UI never sends the password. Member 3/4 can call the range API later.
+        The password itself is never sent.
         """
         digest = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
         return digest[:5], digest[5:]

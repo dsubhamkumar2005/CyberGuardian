@@ -58,7 +58,6 @@ class InputProcessor:
         }
         return FeatureSet(values=values)
 
-    
     @staticmethod
     def _normalise_url(value: str) -> str:
         value = value.strip().strip("<>'\"")
@@ -66,16 +65,24 @@ class InputProcessor:
         if not value:
             return ""
 
-        # Reject explicit non-web schemes before adding https://.
+        # Reject explicit non-web schemes.
         parsed = urlparse(value)
         if parsed.scheme and parsed.scheme.lower() not in {"http", "https"}:
             return value
 
+        # Add HTTPS only to inputs that look like a hostname or IP address.
         if "://" not in value:
+            candidate = value.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+            if not candidate or "." not in candidate:
+                return value
             value = "https://" + value
 
-        return value
+        # Validate the resulting web URL.
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return value
 
+        return value
 
     @staticmethod
     def _entropy(value: str) -> float:
