@@ -15,8 +15,10 @@ FEATURES = (
     ("subdomain_count", "Subdomain count", "levels"),
     ("uses_ip", "IP address host", "yes / no"),
     ("has_https", "HTTPS enabled", "yes / no"),
-    ("special_char_count", "Special characters", "count"),
-    ("shannon_entropy", "URL randomness", "entropy"),
+    ("has_suspicious_keywords", "Credential lure", "yes / no"),
+    ("brand_impersonation", "Brand impersonation", "yes / no"),
+    ("is_shortened", "Shortened link", "yes / no"),
+    ("is_high_risk_tld", "High-risk TLD", "yes / no"),
 )
 
 
@@ -71,8 +73,8 @@ class ScanPage(ctk.CTkFrame):
             ctk.CTkLabel(tile, text=title.upper(), text_color=PALETTE["muted"], font=ctk.CTkFont(size=10, weight="bold")).pack(anchor="w", padx=11, pady=(8, 0))
             value = ctk.CTkLabel(tile, text="—", font=ctk.CTkFont(size=16, weight="bold")); value.pack(anchor="w", padx=11)
             ctk.CTkLabel(tile, text=unit, text_color=PALETTE["muted"], font=ctk.CTkFont(size=10)).pack(anchor="w", padx=11, pady=(0, 8)); self.feature_values[key] = value
-        ctk.CTkLabel(card, text="EXPLANATION", text_color=PALETTE["muted"], font=ctk.CTkFont(size=11, weight="bold")).grid(row=9, column=0, columnspan=2, sticky="w", padx=20, pady=(14, 4))
-        self.reasons = ctk.CTkFrame(card, fg_color="transparent"); self.reasons.grid(row=10, column=0, columnspan=2, sticky="ew", padx=16, pady=(0, 16))
+        ctk.CTkLabel(card, text="EXPLANATION", text_color=PALETTE["muted"], font=ctk.CTkFont(size=11, weight="bold")).grid(row=10, column=0, columnspan=2, sticky="w", padx=20, pady=(14, 4))
+        self.reasons = ctk.CTkFrame(card, fg_color="transparent"); self.reasons.grid(row=11, column=0, columnspan=2, sticky="ew", padx=16, pady=(0, 16))
 
     def _scan_url(self):
         text = self.url_box.get("1.0", "end").strip()
@@ -97,10 +99,10 @@ class ScanPage(ctk.CTkFrame):
         self.url_out.configure(text=result.extracted.url, text_color=PALETTE["text"]); self.model_out.configure(text=f"{result.request.source.upper()} SOURCE  •  {result.model_name}")
         for key, _title, _unit in FEATURES:
             value = values.get(key, 0)
-            if key in {"uses_ip", "has_https"}: text = "YES" if value else "NO"
+            if key in {"uses_ip", "has_https", "has_suspicious_keywords", "brand_impersonation", "is_shortened", "is_high_risk_tld"}: text = "YES" if value else "NO"
             elif key == "shannon_entropy": text = f"{value:.2f}"
             else: text = str(int(value))
-            danger = key == "uses_ip" and value or key == "has_https" and not value
+            danger = (key == "uses_ip" and value) or (key == "has_https" and not value) or (key in {"has_suspicious_keywords", "brand_impersonation", "is_shortened", "is_high_risk_tld"} and value)
             self.feature_values[key].configure(text=text, text_color=PALETTE["malicious"] if danger else PALETTE["text"])
         for child in self.reasons.winfo_children(): child.destroy()
         for reason in result.reasons[:3]: ReasonChip(self.reasons, reason, tone=result.verdict.value).pack(fill="x", pady=3, padx=4)

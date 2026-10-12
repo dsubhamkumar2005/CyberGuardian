@@ -6,9 +6,11 @@ reads them.  The app is still usable when optional ML dependencies are absent.
 
 from __future__ import annotations
 
+import importlib
 import ipaddress
 import math
 import sqlite3
+import sys
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,8 +20,13 @@ from config import DB_PATH, ROOT
 from core.contracts import AnalyticsSnapshot, ExtractedInput, FeatureSet, HardwareStatus, ScanRequest, ScanResult, VerdictLabel
 
 
-MEMBERS_DIR = ROOT.parent / "members"
-ML_ARCHIVE = MEMBERS_DIR / "CyberGuardian-josh-ml.zip"
+# The team integration is deliberately kept outside the UI project.  The UI
+# consumes its public classifier API rather than copying or modifying ML code.
+INTEGRATION_ROOT = (
+    ROOT.parents[1]
+    / "CyberGuardian-ml-folders-integration"
+    / "CyberGuardian-ml-folders-integration"
+)
 
 
 class InputProcessor:
@@ -61,7 +68,19 @@ class InputProcessor:
     @staticmethod
     def _normalise_url(value: str) -> str:
         value = value.strip().strip("<>'\"")
-        if value and "://" not in value:
+        if not value:
+            return ""
+
+        parsed = urlparse(value)
+        # Preserve non-web schemes so the pipeline can reject them clearly,
+        # rather than turning ``javascript:...`` into a misleading hostname.
+        if parsed.scheme and parsed.scheme.lower() not in {"http", "https"}:
+            return value
+
+        if "://" not in value:
+            host_candidate = value.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+            if "." not in host_candidate and not host_candidate.startswith("["):
+                return value
             value = "https://" + value
         return value
 
@@ -83,54 +102,61 @@ class InputProcessor:
 
 
 class MLClassifier:
-    """Uses the supplied Random Forest if pandas/joblib are installed; otherwise local scoring."""
+    """Read-only adapter for Josh's final 23-feature Random Forest v3."""
 
-    def predict(self, features: FeatureSet) -> tuple[VerdictLabel, float, str, list[str]]:
-        prediction = self._member_model(features)
-        if prediction is not None:
-            malicious, confidence = prediction
-            label = VerdictLabel.MALICIOUS if malicious else VerdictLabel.SAFE
-            return label, confidence, "Member ML Random Forest", self._reasons(features)
+    def predict(
+        self, url: str
+    ) -> tuple[VerdictLabel, float, str, list[str], FeatureSet, dict]:
+        if not INTEGRATION_ROOT.is_dir():
+            raise FileNotFoundError(
+                "Final ML integration folder is missing: " f"{INTEGRATION_ROOT}"
+            )
 
-        risk = self._risk(features)
-        label = VerdictLabel.MALICIOUS if risk >= 0.72 else VerdictLabel.SUSPICIOUS if risk >= 0.42 else VerdictLabel.SAFE
-        confidence = max(risk, 1 - risk) if label != VerdictLabel.SUSPICIOUS else 0.58
-        return label, round(confidence, 4), "Local compatibility scorer", self._reasons(features)
+        # Prefer the final team's package even though this UI has a legacy
+        # ``src`` directory with the same name.
+        integration_path = str(INTEGRATION_ROOT)
+        if integration_path not in sys.path:
+            sys.path.insert(0, integration_path)
+        classifier = importlib.import_module("src.classifier")
 
-    @staticmethod
-    def _risk(features: FeatureSet) -> float:
-        v = features.values
-        return min(0.96, 0.06 + .35 * v["uses_ip"] + .18 * (1 - v["has_https"]) + .18 * min(v["subdomain_count"] / 3, 1) + .13 * min(v["special_char_count"] / 10, 1) + .10 * min(v["length"] / 100, 1) + .10 * min(v["shannon_entropy"] / 5, 1))
+        # Desktop scans must remain local.  The feature extractor otherwise
+        # lets tldextract attempt a Public Suffix List refresh on first use.
+        # The bundled PSL snapshot is sufficient for this on-device app.
+        import tldextract
+        feature_extractor = importlib.import_module("src.feature_extractor")
+        feature_extractor._EXTRACTOR = tldextract.TLDExtract(
+            suffix_list_urls=(), cache_dir=None, include_psl_private_domains=True
+        )
 
-    @staticmethod
-    def _reasons(features: FeatureSet) -> list[str]:
-        v = features.values
-        reasons = []
-        if v["uses_ip"]: reasons.append("Uses an IP address instead of a domain")
-        if not v["has_https"]: reasons.append("The link does not use HTTPS")
-        if v["subdomain_count"] > 2: reasons.append("Contains multiple subdomains")
-        if v["special_char_count"] > 6: reasons.append("Contains an unusually high number of special characters")
-        if v["length"] > 75: reasons.append("URL is unusually long")
-        if v["shannon_entropy"] > 4: reasons.append("URL has high character randomness")
-        return reasons or ["No dominant phishing indicators were found."]
+        # The delivered model was trained with parallel workers.  One worker
+        # keeps the desktop UI responsive and works in restricted Windows
+        # environments where worker-process pipes are unavailable.
+        model, _feature_order = classifier.get_model()
+        if hasattr(model, "n_jobs"):
+            model.n_jobs = 1
+        result = classifier.classify(url)
 
-    @staticmethod
-    def _member_model(features: FeatureSet) -> tuple[bool, float] | None:
-        if not ML_ARCHIVE.exists(): return None
-        try:
-            import io
-            import joblib
-            import pandas as pd
-            with zipfile.ZipFile(ML_ARCHIVE) as archive:
-                raw = archive.read("CyberGuardian-josh-ml/models/random_forest_model.pkl")
-            model = joblib.load(io.BytesIO(raw))
-            columns = ["length", "subdomain_count", "uses_ip", "has_https", "special_char_count", "shannon_entropy"]
-            row = pd.DataFrame([[features.values[c] for c in columns]], columns=columns)
-            predicted = int(model.predict(row)[0])
-            probability = float(model.predict_proba(row)[0][predicted])
-            return bool(predicted), probability
-        except Exception:
-            return None
+        verdict_text = result["verdict"]
+        label = {
+            "Safe": VerdictLabel.SAFE,
+            "Malicious": VerdictLabel.MALICIOUS,
+        }.get(verdict_text, VerdictLabel.UNKNOWN)
+        features = FeatureSet(
+            values={
+                key: float(value)
+                for key, value in result.get("features", {}).items()
+                if isinstance(value, (int, float, bool))
+            },
+            human_reasons=list(result.get("reasons", [])),
+        )
+        return (
+            label,
+            float(result["confidence"]),
+            "Production Random Forest v3",
+            list(result.get("reasons", [])),
+            features,
+            result,
+        )
 
 
 class LocalStore:
