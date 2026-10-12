@@ -1,0 +1,23 @@
+__pycache__/
+.venv/
+*.pyc
+data/*.sqlite
+.idea/
+.vscode/
+
+# Local tooling, build output, and operating-system files
+.pytest_cache/
+.mypy_cache/
+*.log
+.DS_Store
+Thumbs.db
+
+# Teammates' legacy copies and generated artifacts. The UI calls the final
+# integration project beside this folder; do not publish duplicate ML/backend
+# code or model/data artifacts in Rudra's UI repository.
+backend/
+members/
+src/
+models/
+features/
+QR codes/
