@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#080909">
+
+    <meta
+        name="description"
+        content="CyberGuardian — an intelligent URL threat detection and phishing analysis platform."
+    >
+
+    <title>CYBR_ // CyberGuardian</title>
+
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="/web/style.css">
+
+    <script src="/web/script.js" defer></script>
+</head>
+
+<body>
+
+    <!-- Background details -->
+    <div class="background-grid" aria-hidden="true"></div>
+    <div class="scanlines" aria-hidden="true"></div>
+
+    <!-- HEADER -->
+    <header class="site-header">
+
+        <a href="#home" class="brand" aria-label="CyberGuardian home">
+            <span class="brand-symbol">✣</span>
+            <span>CYBR_</span>
+        </a>
+
+        <button
+            class="mobile-menu-button"
+            id="mobileMenuButton"
+            aria-label="Open navigation"
+            aria-expanded="false"
+            aria-controls="mainNavigation"
+        >
+            <span></span>
+            <span></span>
+        </button>
+
+        <nav class="main-navigation" id="mainNavigation">
+            <a href="#home">HOME</a>
+            <span class="nav-divider">+</span>
+
+            <a href="#scanner">SCANNER</a>
+            <span class="nav-divider">+</span>
+
+            <a href="#principles">SYSTEM</a>
+            <span class="nav-divider">+</span>
+
+            <a href="#history">HISTORY</a>
+        </nav>
+
+        <div class="header-right">
+
+            <div class="clock-block">
+                <span class="micro-label">SYS_TIME</span>
+                <span id="systemClock">--:--:--</span>
+                <span class="timezone-label">LOCAL SYSTEM</span>
+            </div>
+
+            <a href="#scanner" class="button button-primary header-button">
+                INITIATE SCAN <span class="arrow">↗</span>
+            </a>
+
+        </div>
+
+    </header>
+
+
+    <main>
+
+        <!-- HERO SECTION -->
+        <section class="hero-section" id="home">
+
+            <div class="hero-copy">
+
+                <div class="section-index">
+                    <span class="lime-dot"></span>
+                    CYBERGUARDIAN / THREAT INTELLIGENCE
+                </div>
+
+                <h1>
+                    DEFEND<br>
+                    YOUR <span class="outlined-text">DIGITAL</span><br>
+                    <span class="lime-text">FRONTIER.</span>
+                </h1>
+
+                <div class="hero-subtitle">
+                    THE WEB IS NOT ALWAYS WHAT IT SEEMS.<br>
+                    ANALYZE. DETECT. DEFEND.
+                </div>
+
+                <p class="hero-description">
+                    CyberGuardian analyzes URLs using machine learning
+                    to identify potentially malicious links and suspicious
+                    web addresses before you trust them.
+                </p>
+
+                <div class="hero-actions">
+                    <a href="#scanner" class="button button-primary">
+                        SCAN A URL <span class="arrow">↗</span>
+                    </a>
+
+                    <a href="#principles" class="text-action">
+                        EXPLORE THE SYSTEM <span>↓</span>
+                    </a>
+                </div>
+
+                <div class="hero-metadata">
+                    <span>MODULE_01</span>
+                    <span>URL ANALYSIS ENGINE</span>
+                    <span>ML-POWERED DETECTION</span>
+                </div>
+
+            </div>
+
+
+            <!-- ROBOT ARTWORK -->
+            <div class="hero-visual">
+
+                <div class="visual-topline">
+                    <span>&gt; ANALYSIS_ENGINE</span>
+
+                    <span class="running-status">
+                        <span class="lime-dot"></span>
+                        <span id="heroBackendStatus">INITIALIZING</span>
+                    </span>
+                </div>
+
+                <div class="robot-stage">
+
+                    <div class="orbit orbit-one"></div>
+                    <div class="orbit orbit-two"></div>
+                    <div class="orbit orbit-three"></div>
+
+                    <div class="crosshair crosshair-one">+</div>
+                    <div class="crosshair crosshair-two">+</div>
+                    <div class="crosshair crosshair-three">×</div>
+
+                    <div class="lime-block lime-block-one"></div>
+                    <div class="lime-block lime-block-two"></div>
+                    <div class="lime-block lime-block-three"></div>
+
+                    <!-- Replace the image file with your robot artwork -->
+                    <img
+                        src="/web/cyberguardian_robot_hero.jpg"
+                        alt="Monochrome futuristic robotic head representing digital threat analysis"
+                        class="robot-image"
+                        onerror="this.style.display='none'; document.getElementById('robotFallback').style.display='flex';"
+                    >
+
+                    <div class="robot-fallback" id="robotFallback">
+                        <div class="fallback-symbol">◈</div>
+                        <div class="fallback-title">CYBERGUARDIAN</div>
+                        <div class="fallback-description">
+                            ROBOT ARTWORK NOT FOUND
+                        </div>
+                        <div class="fallback-description">
+                            ADD IMAGE TO /WEB
+                        </div>
+                    </div>
+
+                    <div class="robot-overlay"></div>
+
+                    <div class="coordinate-panel">
+                        <span>SYS.MODE</span>
+                        <strong>SCAN_01</strong>
+                        <span>TYPE: ML</span>
+                        <span>STATUS: ACTIVE</span>
+                    </div>
+
+                    <div class="coordinate-box">
+                        <span>X: <strong>36.1749</strong></span>
+                        <span>Y: <strong>-86.7676</strong></span>
+                        <span>Z: <strong>46.6827</strong></span>
+                    </div>
+
+                    <div class="visual-bottomline">
+                        <span>IDENTITY / PACKET / URL</span>
+                        <span>// THREAT_SCAN_01</span>
+                    </div>
+
+                </div>
+
+                <div class="visual-footer">
+                    <span>FIG. 001 — DIGITAL THREAT ANALYSIS</span>
+                    <span>CYBR_ / SYSTEM INTERFACE</span>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- LIVE SYSTEM STRIP -->
+        <section class="system-strip" aria-label="System information">
+
+            <div class="strip-item">
+                <span class="strip-indicator"></span>
+                <span>THREAT DETECTION</span>
+            </div>
+
+            <div class="strip-item">
+                <span class="strip-number" id="stripTotalScans">000</span>
+                <span>SESSION SCANS</span>
+            </div>
+
+            <div class="strip-item">
+                <span class="strip-number" id="stripThreats">000</span>
+                <span>THREATS FLAGGED</span>
+            </div>
+
+            <div class="strip-item">
+                <span class="strip-indicator"></span>
+                <span>MACHINE LEARNING / ACTIVE</span>
+            </div>
+
+        </section>
+
+
+        <!-- PRINCIPLES -->
+        <section class="principles-section section-shell" id="principles">
+
+            <div class="section-heading">
+
+                <div>
+                    <span class="section-number">/01</span>
+                    <h2>THE <span class="lime-text">PROTOCOL.</span></h2>
+                </div>
+
+                <p>
+                    A SYSTEMATIC APPROACH TO DIGITAL THREAT ANALYSIS.
+                </p>
+
+            </div>
+
+
+            <div class="principles-grid">
+
+                <article class="principle-item">
+
+                    <div class="principle-icon icon-cube">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <path d="M32 5 55 18 32 31 9 18Z"/>
+                            <path d="M9 18V45L32 59V31"/>
+                            <path d="M55 18V45L32 59"/>
+                            <path d="M32 5V31"/>
+                        </svg>
+                    </div>
+
+                    <span class="micro-label">PROTOCOL_01</span>
+                    <h3>URL INSPECTION</h3>
+
+                    <p>
+                        Analyze URL structure, domains, and suspicious
+                        patterns before trusting a link.
+                    </p>
+
+                </article>
+
+
+                <article class="principle-item">
+
+                    <div class="principle-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <rect x="9" y="9" width="46" height="46"/>
+                            <rect x="17" y="17" width="30" height="30"/>
+                            <path d="M32 17V47M17 32H47"/>
+                            <path d="M4 20H9M4 32H9M4 44H9"/>
+                            <path d="M55 20H60M55 32H60M55 44H60"/>
+                        </svg>
+                    </div>
+
+                    <span class="micro-label">PROTOCOL_02</span>
+                    <h3>FEATURE ANALYSIS</h3>
+
+                    <p>
+                        Extract technical URL features to help distinguish
+                        legitimate links from suspicious ones.
+                    </p>
+
+                </article>
+
+
+                <article class="principle-item">
+
+                    <div class="principle-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <circle cx="32" cy="32" r="24"/>
+                            <circle cx="32" cy="32" r="14"/>
+                            <circle cx="32" cy="32" r="4"/>
+                            <path d="M32 2V12M32 52V62M2 32H12M52 32H62"/>
+                        </svg>
+                    </div>
+
+                    <span class="micro-label">PROTOCOL_03</span>
+                    <h3>ML CLASSIFICATION</h3>
+
+                    <p>
+                        Send the URL through the existing classification
+                        model to obtain a predicted verdict.
+                    </p>
+
+                </article>
+
+
+                <article class="principle-item">
+
+                    <div class="principle-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <path d="M32 5 53 13V30C53 43 44 53 32 59 20 53 11 43 11 30V13Z"/>
+                            <path d="M21 32 28 39 44 23"/>
+                        </svg>
+                    </div>
+
+                    <span class="micro-label">PROTOCOL_04</span>
+                    <h3>RISK ASSESSMENT</h3>
+
+                    <p>
+                        Present model predictions, probability values,
+                        and available warning reasons.
+                    </p>
+
+                </article>
+
+
+                <article class="principle-item">
+
+                    <div class="principle-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <path d="M8 15H56M8 25H56M8 35H56M8 45H56M8 55H56"/>
+                            <path d="M15 8V56M25 8V56M35 8V56M45 8V56M55 8V56"/>
+                            <rect x="25" y="25" width="20" height="20"/>
+                        </svg>
+                    </div>
+
+                    <span class="micro-label">PROTOCOL_05</span>
+                    <h3>SCAN HISTORY</h3>
+
+                    <p>
+                        Keep a session-level record of scan results for
+                        review and demonstration.
+                    </p>
+
+                </article>
+
+            </div>
+
+        </section>
+
+
+        <!-- URL SCANNER -->
+        <section class="scanner-section section-shell" id="scanner">
+
+            <div class="section-heading">
+
+                <div>
+                    <span class="section-number">/02</span>
+                    <h2>THREAT <span class="lime-text">SCANNER.</span></h2>
+                </div>
+
+                <div class="scanner-engine-status">
+                    <span class="status-light" id="scannerStatusLight"></span>
+                    <span id="scannerStatusText">CONNECTING TO ENGINE...</span>
+                </div>
+
+            </div>
+
+
+            <div class="scanner-layout">
+
+                <!-- Input panel -->
+                <div class="scanner-input-panel">
+
+                    <div class="panel-topline">
+                        <span>INPUT_TERMINAL</span>
+                        <span>01 / URL</span>
+                    </div>
+
+                    <div class="scanner-intro">
+                        <h3>INSPECT A<br><span class="lime-text">DESTINATION.</span></h3>
+
+                        <p>
+                            Enter a complete HTTP or HTTPS URL.
+                            CyberGuardian will submit it to the connected
+                            analysis engine for classification.
+                        </p>
+                    </div>
+
+
+                    <form id="scanForm">
+
+                        <label for="urlInput" class="input-label">
+                            TARGET URL
+                        </label>
+
+                        <div class="url-input-wrap">
+
+                            <span class="input-prefix">&gt;_</span>
+
+                            <input
+                                type="url"
+                                id="urlInput"
+                                name="url"
+                                placeholder="https://example.com"
+                                autocomplete="url"
+                                spellcheck="false"
+                                required
+                                aria-describedby="scanMessage"
+                            >
+
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="button button-primary scan-button"
+                            id="scanButton"
+                        >
+                            <span id="scanButtonText">EXECUTE ANALYSIS</span>
+                            <span class="arrow">↗</span>
+                        </button>
+
+                        <p class="scan-message" id="scanMessage" role="status" aria-live="polite">
+                            SYSTEM READY. AWAITING TARGET INPUT.
+                        </p>
+
+                    </form>
+
+
+                    <div class="scanner-footnote">
+                        <span>HTTP / HTTPS ONLY</span>
+                        <span>MODEL-BASED CLASSIFICATION</span>
+                    </div>
+
+                </div>
+
+
+                <!-- Results panel -->
+                <div class="scanner-results-panel">
+
+                    <div class="panel-topline">
+                        <span>ANALYSIS_OUTPUT</span>
+                        <span id="resultTimestamp">NO DATA</span>
+                    </div>
+
+
+                    <div class="empty-result" id="emptyResult">
+
+                        <div class="empty-crosshair">+</div>
+
+                        <div class="empty-symbol">◈</div>
+
+                        <h3>AWAITING INPUT</h3>
+
+                        <p>
+                            Submit a URL to populate the analysis report.
+                        </p>
+
+                        <div class="empty-terminal">
+                            &gt; ENGINE_IDLE<span class="cursor">_</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="scan-result hidden" id="scanResult">
+
+                        <div class="verdict-banner" id="verdictBanner">
+
+                            <div class="verdict-icon" id="verdictIcon">!</div>
+
+                            <div>
+                                <span class="micro-label">MODEL VERDICT</span>
+                                <h3 id="verdictText">ANALYSIS COMPLETE</h3>
+                            </div>
+
+                            <span class="verdict-tag" id="verdictTag">RESULT</span>
+
+                        </div>
+
+
+                        <div class="result-target">
+                            <span class="micro-label">SCANNED TARGET</span>
+                            <p id="scannedTarget">—</p>
+                        </div>
+
+
+                        <div class="result-metrics">
+
+                            <div class="metric-box">
+                                <span class="micro-label">CONFIDENCE</span>
+                                <strong id="confidenceValue">—</strong>
+                            </div>
+
+                            <div class="metric-box">
+                                <span class="micro-label">RISK SCORE</span>
+                                <strong id="riskValue">—</strong>
+                            </div>
+
+                        </div>
+
+
+                        <div class="probability-section">
+
+                            <div class="probability-heading">
+                                <span>SAFE PROBABILITY</span>
+                                <strong id="safeProbabilityValue">—</strong>
+                            </div>
+
+                            <div
+                                class="probability-track"
+                                role="progressbar"
+                                id="safeProgress"
+                                aria-label="Safe probability"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuenow="0"
+                            >
+                                <div class="probability-fill safe-fill" id="safeBar"></div>
+                            </div>
+
+
+                            <div class="probability-heading">
+                                <span>PHISHING PROBABILITY</span>
+                                <strong id="phishingProbabilityValue">—</strong>
+                            </div>
+
+                            <div
+                                class="probability-track"
+                                role="progressbar"
+                                id="phishingProgress"
+                                aria-label="Phishing probability"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuenow="0"
+                            >
+                                <div class="probability-fill danger-fill" id="phishingBar"></div>
+                            </div>
+
+                        </div>
+
+
+                        <div class="reasons-section">
+
+                            <span class="micro-label">ANALYSIS REASONS</span>
+
+                            <ul id="reasonsList">
+                                <li>No reasons provided by the model.</li>
+                            </ul>
+
+                        </div>
+
+
+                        <div class="result-footer">
+                            <span>REPORT GENERATED</span>
+                            <span id="resultFooterStatus">COMPLETE</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- LIVE STATISTICS -->
+        <section class="statistics-section section-shell">
+
+            <div class="section-heading">
+
+                <div>
+                    <span class="section-number">/03</span>
+                    <h2>SESSION <span class="lime-text">TELEMETRY.</span></h2>
+                </div>
+
+                <p>LIVE COUNTERS FOR THIS BROWSER SESSION.</p>
+
+            </div>
+
+
+            <div class="statistics-grid">
+
+                <article class="stat-card">
+                    <span class="micro-label">TOTAL SCANS</span>
+                    <strong id="totalScans">000</strong>
+                    <span class="stat-caption">REQUESTS PROCESSED</span>
+                </article>
+
+                <article class="stat-card">
+                    <span class="micro-label">SAFE RESULTS</span>
+                    <strong id="safeScans">000</strong>
+                    <span class="stat-caption">CLASSIFIED AS SAFE</span>
+                </article>
+
+                <article class="stat-card">
+                    <span class="micro-label">FLAGGED RESULTS</span>
+                    <strong id="threatScans">000</strong>
+                    <span class="stat-caption">SUSPICIOUS OR MALICIOUS</span>
+                </article>
+
+                <article class="stat-card">
+                    <span class="micro-label">AVERAGE LATENCY</span>
+                    <strong id="avgTime">—</strong>
+                    <span class="stat-caption">CLIENT-MEASURED TIME</span>
+                </article>
+
+            </div>
+
+        </section>
+
+
+        <!-- HISTORY -->
+        <section class="history-section section-shell" id="history">
+
+            <div class="section-heading">
+
+                <div>
+                    <span class="section-number">/04</span>
+                    <h2>SCAN <span class="lime-text">ARCHIVE.</span></h2>
+                </div>
+
+                <button class="button button-secondary" id="clearHistoryButton">
+                    CLEAR SESSION
+                </button>
+
+            </div>
+
+
+            <div class="history-panel">
+
+                <div class="panel-topline">
+                    <span>RECENT_SCAN_RECORDS</span>
+                    <span id="historyCount">0 RECORDS</span>
+                </div>
+
+                <div class="table-scroll">
+
+                    <table class="history-table">
+
+                        <thead>
+                            <tr>
+                                <th>TIME</th>
+                                <th>TARGET</th>
+                                <th>VERDICT</th>
+                                <th>RISK</th>
+                                <th>LATENCY</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="historyBody">
+
+                            <tr class="history-empty-row">
+                                <td colspan="5">
+                                    &gt; NO SCAN RECORDS AVAILABLE.
+                                </td>
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="history-footer">
+                    SESSION HISTORY IS STORED IN THE CURRENT PAGE MEMORY.
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- CTA / SYSTEM STATUS / NEWSLETTER -->
+        <section class="information-section">
+
+            <article class="information-panel join-panel">
+
+                <span class="section-number">/05</span>
+
+                <h2>STAY<br><span class="lime-text">VIGILANT.</span></h2>
+
+                <p>
+                    Digital safety starts with awareness.
+                    Inspect unfamiliar links before trusting them.
+                </p>
+
+                <a href="#scanner" class="button button-primary">
+                    ANALYZE A LINK <span class="arrow">↗</span>
+                </a>
+
+            </article>
+
+
+            <article class="information-panel status-panel">
+
+                <span class="section-number">/06</span>
+
+                <h3>SYSTEM STATUS</h3>
+
+                <div class="status-row">
+                    <span>API CONNECTION</span>
+                    <strong id="statusApi">CHECKING</strong>
+                </div>
+
+                <div class="status-row">
+                    <span>SCAN ENGINE</span>
+                    <strong id="statusEngine">UNKNOWN</strong>
+                </div>
+
+                <div class="status-row">
+                    <span>SESSION SCANS</span>
+                    <strong id="statusScans">000</strong>
+                </div>
+
+                <div class="status-row">
+                    <span>LAST SCAN</span>
+                    <strong id="statusLastScan">NONE</strong>
+                </div>
+
+                <div class="operational-message" id="operationalMessage">
+                    <span class="lime-dot"></span>
+                    CONNECTING TO BACKEND
+                </div>
+
+            </article>
+
+
+            <article class="information-panel newsletter-panel">
+
+                <span class="section-number">/07</span>
+
+                <h3>SUBSCRIBE TO<br>SIGNAL.</h3>
+
+                <p>
+                    Stay informed about digital security,
+                    phishing awareness, and emerging threats.
+                </p>
+
+                <form id="newsletterForm">
+
+                    <label for="newsletterEmail" class="micro-label">
+                        EMAIL ADDRESS
+                    </label>
+
+                    <div class="newsletter-input-row">
+
+                        <input
+                            type="email"
+                            id="newsletterEmail"
+                            placeholder="you@example.com"
+                            required
+                        >
+
+                        <button type="submit" class="button button-primary">
+                            SUBMIT ↗
+                        </button>
+
+                    </div>
+
+                    <p id="newsletterMessage" class="newsletter-message" role="status">
+                        FRONTEND DEMONSTRATION ONLY.
+                    </p>
+
+                </form>
+
+            </article>
+
+        </section>
+
+    </main>
+
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+
+        <div class="footer-main">
+
+            <div class="footer-brand-column">
+
+                <a href="#home" class="brand footer-brand">
+                    <span class="brand-symbol">✣</span>
+                    <span>CYBR_</span>
+                </a>
+
+                <p>
+                    INTELLIGENCE FOR A<br>
+                    SAFER DIGITAL WORLD.
+                </p>
+
+                <span class="copyright">
+                    © 2026 CYBERGUARDIAN
+                </span>
+
+            </div>
+
+
+            <div class="footer-column">
+                <h4>NAVIGATION</h4>
+                <a href="#home">Home</a>
+                <a href="#scanner">Scanner</a>
+                <a href="#principles">System</a>
+                <a href="#history">History</a>
+            </div>
+
+
+            <div class="footer-column">
+                <h4>MODULES</h4>
+                <span>URL INSPECTION</span>
+                <span>FEATURE ANALYSIS</span>
+                <span>ML CLASSIFICATION</span>
+                <span>RISK ASSESSMENT</span>
+            </div>
+
+
+            <div class="footer-column footer-system-column">
+                <h4>GLOBAL STATUS</h4>
+
+                <div class="footer-world-map" aria-hidden="true">
+                    <svg viewBox="0 0 240 100">
+                        <path d="M13 26 29 13 48 18 58 31 46 41 50 52 36 63 26 52 18 40Z"/>
+                        <path d="M65 53 82 48 97 58 94 76 83 91 74 74Z"/>
+                        <path d="M99 20 119 12 138 18 148 29 165 26 180 38 172 49 150 48 142 61 129 54 116 43 105 41Z"/>
+                        <path d="M135 58 153 54 168 67 160 83 147 88 139 73Z"/>
+                        <path d="M184 63 197 56 215 62 224 74 208 81 194 76Z"/>
+                        <circle cx="40" cy="36" r="3"/>
+                        <circle cx="143" cy="35" r="3"/>
+                        <circle cx="205" cy="68" r="3"/>
+                    </svg>
+                </div>
+
+                <span class="global-status">
+                    <span class="lime-dot"></span>
+                    <span id="footerBackendStatus">CHECKING ENGINE</span>
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="hazard-strip">
+
+            <div class="hazard-pattern"></div>
+
+            <div class="access-message">
+                <span class="cursor">&gt;</span>
+                ACCESS GRANTED<span class="cursor">_</span>
+            </div>
+
+            <div class="hazard-pattern"></div>
+
+        </div>
+
+    </footer>
+
+</body>
+</html>
